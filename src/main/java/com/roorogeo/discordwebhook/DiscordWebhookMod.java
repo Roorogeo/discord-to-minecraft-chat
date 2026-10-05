@@ -32,11 +32,6 @@ public class DiscordWebhookMod implements ModInitializer {
 	public void onInitialize() {
 		config = ModConfig.load();
 
-		if (config.botToken != null && !config.botToken.isBlank()) {
-			new DiscordCommands(config).register();
-			LOGGER.info("Discord bot enabled");
-		}
-
 		if (config.webhookUrl == null || config.webhookUrl.isBlank()) {
 			LOGGER.warn("No Discord webhook URL set. Add one to config/discord-webhook.json and restart the server.");
 			return;
