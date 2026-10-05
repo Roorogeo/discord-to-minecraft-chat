@@ -37,6 +37,15 @@ public class ModConfig {
 	public boolean sendAdvancements = true;
 	public boolean sendServerStartStop = true;
 
+	/**
+	 * Discord bot token, needed for linking accounts and running commands from Discord with /mc.
+	 * Leave empty to only relay messages through the webhook.
+	 */
+	public String botToken = "";
+
+	/** ID of your Discord server. Commands are registered there instantly and only accepted from there. */
+	public String guildId = "";
+
 	public static ModConfig load() {
 		Path path = FabricLoader.getInstance().getConfigDir().resolve(FILE_NAME);
 		ModConfig config = null;
