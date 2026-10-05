@@ -33,7 +33,7 @@ This part needs a Discord bot, because webhooks can only post messages.
 Then, to link an account:
 
 1. In Minecraft, run `/discord link`. You get a 6-digit code that is valid for 5 minutes.
-2. In Discord, run `/link code:<code>`.
+2. In Discord, run `/link code:<code>`. After 5 wrong codes you have to wait 15 minutes, so codes can't be guessed.
 
 Once linked, run `/mc command:<command>` in Discord, for example `/mc command:whitelist add Steve`. The command runs as your Minecraft player, and its output is shown only to you in Discord.
 
