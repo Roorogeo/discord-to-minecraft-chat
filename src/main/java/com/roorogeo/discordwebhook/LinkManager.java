@@ -28,10 +28,24 @@ public class LinkManager {
 	private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 	private static final Type LINKS_TYPE = new TypeToken<Map<String, LinkedPlayer>>() { }.getType();
 	private static final long CODE_LIFETIME_MILLIS = 5 * 60 * 1000;
+	/** Wrong codes allowed per Discord user per window, so codes can't be guessed by brute force. */
+	private static final int MAX_FAILED_ATTEMPTS = 5;
+	private static final long FAILED_ATTEMPT_WINDOW_MILLIS = 15 * 60 * 1000;
 
 	public record LinkedPlayer(UUID uuid, String name) { }
 
 	private record PendingCode(UUID uuid, String name, long expiresAt) { }
+
+	private record FailedAttempts(int count, long windowStart) { }
+
+	/** Result of {@link #redeemCode}: the linked player, or why linking failed. */
+	public sealed interface RedeemResult {
+		record Linked(LinkedPlayer player) implements RedeemResult { }
+
+		record InvalidCode() implements RedeemResult { }
+
+		record TooManyAttempts() implements RedeemResult { }
+	}
 
 	private final Path path = FabricLoader.getInstance().getConfigDir().resolve("discord-links.json");
 	private final SecureRandom random = new SecureRandom();
@@ -39,6 +53,8 @@ public class LinkManager {
 	private final Map<String, LinkedPlayer> links = new ConcurrentHashMap<>();
 	/** Link code → player who asked for it. */
 	private final Map<String, PendingCode> pendingCodes = new ConcurrentHashMap<>();
+	/** Discord user ID → recent wrong codes. */
+	private final Map<String, FailedAttempts> failedAttempts = new ConcurrentHashMap<>();
 
 	public LinkManager() {
 		load();
@@ -58,20 +74,35 @@ public class LinkManager {
 		return code;
 	}
 
-	/** Links the Discord user to the player who created {@code code}. Returns null if the code is unknown or expired. */
-	public LinkedPlayer redeemCode(String discordId, String code) {
+	/** Links the Discord user to the player who created {@code code}. */
+	public synchronized RedeemResult redeemCode(String discordId, String code) {
+		long now = System.currentTimeMillis();
+		FailedAttempts failed = failedAttempts.get(discordId);
+
+		if (failed != null && now - failed.windowStart() > FAILED_ATTEMPT_WINDOW_MILLIS) {
+			failedAttempts.remove(discordId);
+			failed = null;
+		}
+
+		if (failed != null && failed.count() >= MAX_FAILED_ATTEMPTS) {
+			return new RedeemResult.TooManyAttempts();
+		}
+
 		PendingCode pending = pendingCodes.remove(code.trim());
 
-		if (pending == null || pending.expiresAt() < System.currentTimeMillis()) {
-			return null;
+		if (pending == null || pending.expiresAt() < now) {
+			failedAttempts.put(discordId, failed == null ? new FailedAttempts(1, now) : new FailedAttempts(failed.count() + 1, failed.windowStart()));
+			return new RedeemResult.InvalidCode();
 		}
+
+		failedAttempts.remove(discordId);
 
 		// A Minecraft account can only be linked to one Discord account at a time.
 		links.values().removeIf(player -> player.uuid().equals(pending.uuid()));
 		LinkedPlayer player = new LinkedPlayer(pending.uuid(), pending.name());
 		links.put(discordId, player);
 		save();
-		return player;
+		return new RedeemResult.Linked(player);
 	}
 
 	public LinkedPlayer get(String discordId) {

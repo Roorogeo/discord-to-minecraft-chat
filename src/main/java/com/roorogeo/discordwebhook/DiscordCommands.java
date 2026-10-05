@@ -76,10 +76,16 @@ public class DiscordCommands {
 
 		switch (command.name()) {
 			case "link" -> {
-				LinkManager.LinkedPlayer player = links.redeemCode(command.userId(), command.option("code"));
-				command.reply(player != null
-						? "Linked to Minecraft account **" + player.name() + "**. You can now use `/mc`."
-						: "That code is invalid or has expired. Run `/discord link` in Minecraft to get a new one.");
+				switch (links.redeemCode(command.userId(), command.option("code"))) {
+					case LinkManager.RedeemResult.Linked(LinkManager.LinkedPlayer player) -> {
+						command.reply("Linked to Minecraft account **" + player.name() + "**. You can now use `/mc`.");
+						notifyPlayer(player, "Your account is now linked to Discord.");
+					}
+					case LinkManager.RedeemResult.InvalidCode() ->
+							command.reply("That code is invalid or has expired. Run `/discord link` in Minecraft to get a new one.");
+					case LinkManager.RedeemResult.TooManyAttempts() ->
+							command.reply("Too many wrong codes. Try again in 15 minutes.");
+				}
 			}
 			case "unlink" -> {
 				LinkManager.LinkedPlayer player = links.unlinkDiscord(command.userId());
@@ -89,6 +95,21 @@ public class DiscordCommands {
 			}
 			case "mc" -> runCommand(command);
 			default -> command.reply("Unknown command.");
+		}
+	}
+
+	/** Tells the player in game, if they're online, so they notice if someone else linked their account. */
+	private void notifyPlayer(LinkManager.LinkedPlayer linked, String message) {
+		MinecraftServer current = server;
+
+		if (current != null) {
+			current.execute(() -> {
+				ServerPlayer player = current.getPlayerList().getPlayer(linked.uuid());
+
+				if (player != null) {
+					player.sendSystemMessage(Component.literal(message).withStyle(ChatFormatting.GREEN));
+				}
+			});
 		}
 	}
 
