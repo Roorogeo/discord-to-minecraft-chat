@@ -1,0 +1,26 @@
+{
+	"schemaVersion": 1,
+	"id": "discordwebhook",
+	"version": "${version}",
+	"name": "Discord Webhook Chat",
+	"description": "Relays server chat, joins/leaves, deaths and advancements to a Discord channel through a webhook.",
+	"authors": [
+		"roorogeo"
+	],
+	"contact": {
+		"sources": "https://github.com/roorogeo/discord-to-minecraft-chat"
+	},
+	"license": "MIT",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"com.roorogeo.discordwebhook.DiscordWebhookMod"
+		]
+	},
+	"depends": {
+		"fabricloader": ">=0.19.5",
+		"minecraft": "~26.2",
+		"java": ">=25",
+		"fabric-api": "*"
+	}
+}
